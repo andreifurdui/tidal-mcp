@@ -157,11 +157,10 @@ class TidalClient:
         limit = max(1, min(25, limit))
 
         response = requests.get(
-            f"{BASE_URL}/searchResults/{requests.utils.quote(query, safe='')}/relationships/tracks",
+            f"{BASE_URL}/searchResults/{requests.utils.quote(query, safe='')}/relationships/topHits",
             params={
                 "countryCode": self.country_code,
-                "include": "tracks",
-                "page[limit]": limit,
+                "include": "topHits",
             },
             headers=self._catalog_headers(),
         )
@@ -171,8 +170,13 @@ class TidalClient:
                 f"Search failed: {response.status_code} {response.text}"
             )
 
-        tracks, _ = parse_collection_response(response.json(), resource_type="tracks")
-        return tracks
+        resp_json = response.json()
+        # topHits returns mixed types (tracks, artists, albums) — keep only tracks
+        resp_json["data"] = [
+            d for d in resp_json.get("data", []) if d.get("type") == "tracks"
+        ]
+        tracks, _ = parse_collection_response(resp_json, resource_type="tracks")
+        return tracks[:limit]
 
     # ── Favorites ────────────────────────────────────────────────────
 
