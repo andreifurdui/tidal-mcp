@@ -157,7 +157,7 @@ class TidalClient:
         limit = max(1, min(25, limit))
 
         response = requests.get(
-            f"{BASE_URL}/searchresults/{requests.utils.quote(query, safe='')}/relationships/tracks",
+            f"{BASE_URL}/searchResults/{requests.utils.quote(query, safe='')}/relationships/tracks",
             params={
                 "countryCode": self.country_code,
                 "include": "tracks",
