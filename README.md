@@ -2,14 +2,14 @@
 
 ![Demo: Music Recommendations in Action](./assets/tidal_mcp_demo.gif)
 
-Most music platforms offer recommendations — Daily Discovery, Top Artists, New Arrivals, etc. — but even with the state-of-the-art system, they often feel too "aggregated". I wanted something more custom and context-aware.
+TIDAL MCP lets you manage your TIDAL music library through natural conversation with an LLM. Search the catalog, build playlists, and browse your favorites — all from chat.
 
 With TIDAL MCP, you can ask for things like:
-> *"Based on my last 10 favorites, find similar tracks — but only ones from recent years."*
+> *"Search for Radiohead tracks on TIDAL and create a playlist with the top results."*
 >
-> *"Find me tracks like those in this playlist, but slower and more acoustic."*
+> *"Find 'Bohemian Rhapsody' by Queen and add it to my playlist."*
 
-The LLM filters and curates results using your input, finds similar tracks via TIDAL’s API, and builds new playlists directly in your account.
+The LLM searches the TIDAL catalog, collects track IDs, and creates playlists directly in your account.
 
 <a href="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp">
   <img width="400" height="200" src="https://glama.ai/mcp/servers/@yuhuacheng/tidal-mcp/badge" alt="TIDAL: My Custom Picks MCP server" />
@@ -17,8 +17,9 @@ The LLM filters and curates results using your input, finds similar tracks via T
 
 ## Features
 
-- 🌟 **Music Recommendations**: Get personalized track recommendations based on your listening history **plus your custom criteria**.
+- 🔍 **Track Search**: Search the TIDAL catalog by track name, artist, or any query — no login required
 - ၊၊||၊ **Playlist Management**: Create, view, and manage your TIDAL playlists
+- ⭐ **Favorites Access**: Browse your saved favorite tracks
 
 ## Quick Start
 
@@ -27,6 +28,7 @@ The LLM filters and curates results using your input, finds similar tracks via T
 - Python 3.10+
 - [uv](https://github.com/astral-sh/uv) (Python package manager)
 - TIDAL subscription
+- TIDAL developer credentials (Client ID + Client Secret from [developer.tidal.com](https://developer.tidal.com))
 
 ### Installation
 
@@ -47,15 +49,18 @@ The LLM filters and curates results using your input, finds similar tracks via T
    uv pip install --editable .
    ```
 
-   This will install all dependencies defined in the pyproject.toml file and set up the project in development mode.
+### TIDAL Developer Setup
 
+1. Go to [developer.tidal.com](https://developer.tidal.com) and log in
+2. Create a new app in the Dashboard
+3. Note your **Client ID** and **Client Secret**
+4. Set the redirect URI to `http://localhost:18888/callback` (or your custom port)
 
 ## MCP Client Configuration
 
 ### Claude Desktop Configuration
 
-To add this MCP server to Claude Desktop, you need to update the MCP configuration file. Here's an example configuration:
-(you can specify the port by adding an optional `env` section with the `TIDAL_MCP_PORT` environment variable)
+To add this MCP server to Claude Desktop, update the MCP configuration file:
 
 ```json
 {
@@ -63,7 +68,8 @@ To add this MCP server to Claude Desktop, you need to update the MCP configurati
     "TIDAL Integration": {
       "command": "/path/to/your/uv",
       "env": {
-        "TIDAL_MCP_PORT": "5100"
+        "TIDAL_CLIENT_ID": "your-client-id",
+        "TIDAL_CLIENT_SECRET": "your-client-secret"
       },
       "args": [
         "run",
@@ -71,10 +77,6 @@ To add this MCP server to Claude Desktop, you need to update the MCP configurati
         "requests",
         "--with",
         "mcp[cli]",
-        "--with",
-        "flask",
-        "--with",
-        "tidalapi",
         "mcp",
         "run",
         "/path/to/your/project/tidal-mcp/mcp_server/server.py"
@@ -84,8 +86,14 @@ To add this MCP server to Claude Desktop, you need to update the MCP configurati
 }
 ```
 
-Example scrrenshot of the MCP configuration in Claude Desktop:
-![Claude MCP Configuration](./assets/claude_desktop_config.png)
+### Environment Variables
+
+| Variable | Required | Default | Purpose |
+|----------|----------|---------|---------|
+| `TIDAL_CLIENT_ID` | Yes | — | From developer.tidal.com dashboard |
+| `TIDAL_CLIENT_SECRET` | Yes | — | From developer.tidal.com dashboard |
+| `TIDAL_REDIRECT_PORT` | No | `18888` | Port for OAuth PKCE callback server |
+| `TIDAL_COUNTRY_CODE` | No | `US` | Country code for catalog queries |
 
 ### Steps to Install MCP Configuration
 
@@ -97,24 +105,20 @@ Example scrrenshot of the MCP configuration in Claude Desktop:
 6. Restart Claude Desktop
 
 ## Suggested Prompt Starters
-Once configured, you can interact with your TIDAL account through a LLM by asking questions like:
+Once configured, you can interact with your TIDAL account through an LLM by asking questions like:
 
-- *“Recommend songs like those in this playlist, but slower and more acoustic.”*
-- *“Create a playlist based on my top tracks, but focused on chill, late-night vibes.”*
-- *“Find songs like these in playlist XYZ but in languages other than English.”*
-
-*💡 You can also ask the model to:*
-- Use more tracks as seeds to broaden the inspiration.
-- Return more recommendations if you want a longer playlist.
-- Or delete a playlist if you’re not into it — no pressure!
+- *"Search for Radiohead tracks on TIDAL"*
+- *"Find 'Bohemian Rhapsody' by Queen and create a playlist with it"*
+- *"Show me my favorite tracks"*
+- *"Create a playlist called 'Road Trip' with these songs: ..."*
 
 ## Available Tools
 
 The TIDAL MCP integration provides the following tools:
 
-- `tidal_login`: Authenticate with TIDAL through browser login flow
+- `tidal_login`: Authenticate with TIDAL through browser login flow (required for user operations)
+- `search_tracks`: Search the TIDAL catalog by track name, artist, or query (no login needed)
 - `get_favorite_tracks`: Retrieve your favorite tracks from TIDAL
-- `recommend_tracks`: Get personalized music recommendations
 - `create_tidal_playlist`: Create a new playlist in your TIDAL account
 - `get_user_playlists`: List all your playlists on TIDAL
 - `get_playlist_tracks`: Retrieve all tracks from a specific playlist
@@ -127,4 +131,4 @@ The TIDAL MCP integration provides the following tools:
 ## Acknowledgements
 
 - [Model Context Protocol (MCP)](https://github.com/modelcontextprotocol/python-sdk)
-- [TIDAL Python API](https://github.com/tamland/python-tidal)
+- [TIDAL Developer Platform](https://developer.tidal.com)
