@@ -76,7 +76,7 @@ To add this MCP server to Claude Desktop, update the MCP configuration file:
         "--with",
         "requests",
         "--with",
-        "mcp[cli]",
+        "mcp[cli]<2",
         "mcp",
         "run",
         "/path/to/your/project/tidal-mcp/mcp_server/server.py"
