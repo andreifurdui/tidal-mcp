@@ -111,6 +111,9 @@ Once configured, you can interact with your TIDAL account through an LLM by aski
 - *"Find 'Bohemian Rhapsody' by Queen and create a playlist with it"*
 - *"Show me my favorite tracks"*
 - *"Create a playlist called 'Road Trip' with these songs: ..."*
+- *"Add 'Karma Police' to my Road Trip playlist"*
+- *"Move the last three tracks of my Road Trip playlist to the top"*
+- *"Rename my Road Trip playlist to 'Summer Drive' and make it public"*
 
 ## Available Tools
 
@@ -121,7 +124,11 @@ The TIDAL MCP integration provides the following tools:
 - `get_favorite_tracks`: Retrieve your favorite tracks from TIDAL
 - `create_tidal_playlist`: Create a new playlist in your TIDAL account
 - `get_user_playlists`: List all your playlists on TIDAL
-- `get_playlist_tracks`: Retrieve all tracks from a specific playlist
+- `get_playlist_tracks`: Retrieve all tracks from a specific playlist (with their positions)
+- `update_tidal_playlist`: Rename a playlist, change its description, or set it public/unlisted
+- `add_tracks_to_playlist`: Add tracks to an existing playlist, optionally before a given track and skipping duplicates
+- `remove_tracks_from_playlist`: Remove tracks from a playlist
+- `reorder_playlist_tracks`: Move tracks to a new position within a playlist
 - `delete_tidal_playlist`: Delete a playlist from your TIDAL account
 
 ## License

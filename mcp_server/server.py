@@ -192,13 +192,13 @@ def create_tidal_playlist(
 
         # Add tracks
         str_ids = [str(tid) for tid in track_ids]
-        client.add_tracks_to_playlist(
+        result = client.add_tracks_to_playlist(
             playlist_id=playlist["id"], track_ids=str_ids
         )
 
         return {
             "status": "success",
-            "message": f"Successfully created playlist '{title}' with {len(track_ids)} tracks.",
+            "message": f"Successfully created playlist '{title}' with {len(result['added'])} tracks.",
             "playlist": playlist,
         }
     except Exception as e:
@@ -262,6 +262,8 @@ def get_playlist_tracks(playlist_id: str, limit: int = 100) -> dict:
     1. Present the tracks in a clear, organized format
     2. Include track name, artist, album, and TIDAL URL
     3. Mention the total number of tracks
+    4. Each track carries its 1-based "position" in the playlist, useful for
+       reorder_playlist_tracks() and remove_tracks_from_playlist()
 
     Args:
         playlist_id: The TIDAL ID of the playlist to retrieve (required)
@@ -295,6 +297,247 @@ def get_playlist_tracks(playlist_id: str, limit: int = 100) -> dict:
         return {
             "status": "error",
             "message": f"Failed to retrieve playlist tracks: {str(e)}",
+        }
+
+
+@mcp.tool()
+def update_tidal_playlist(
+    playlist_id: str,
+    title: Optional[str] = None,
+    description: Optional[str] = None,
+    access_type: Optional[str] = None,
+) -> dict:
+    """
+    Updates a playlist's title, description and/or visibility.
+
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Rename my playlist to ..."
+    - "Change the description of my playlist"
+    - "Make my playlist public / unlisted"
+
+    Only the fields you pass are changed; the others are left as they are.
+
+    Args:
+        playlist_id: The TIDAL ID of the playlist to update (required)
+        title: New playlist title (1-250 characters)
+        description: New description (up to 500 characters; pass "" to clear it)
+        access_type: Playlist visibility: "PUBLIC" or "UNLISTED"
+
+    Returns:
+        A dictionary containing the status and the updated playlist.
+    """
+    if not auth.is_user_authenticated():
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first. Please use tidal_login().",
+        }
+
+    if not playlist_id:
+        return {
+            "status": "error",
+            "message": "A playlist ID is required. Use get_user_playlists() to find playlist IDs.",
+        }
+
+    if title is not None and not title.strip():
+        return {"status": "error", "message": "Playlist title cannot be empty."}
+
+    try:
+        playlist = client.update_playlist(
+            playlist_id=playlist_id,
+            name=title,
+            description=description,
+            access_type=access_type,
+        )
+        return {
+            "status": "success",
+            "message": f"Playlist '{playlist['title']}' was updated.",
+            "playlist": playlist,
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to update playlist: {str(e)}",
+        }
+
+
+@mcp.tool()
+def add_tracks_to_playlist(
+    playlist_id: str,
+    track_ids: list,
+    skip_duplicates: bool = True,
+    before_track_id: Optional[str] = None,
+) -> dict:
+    """
+    Adds tracks to an existing TIDAL playlist.
+
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Add these songs to my playlist"
+    - "Put this track in my [playlist name] playlist"
+    - "Insert this song before ... in my playlist"
+
+    Use search_tracks() to find track IDs and get_user_playlists() to find the
+    playlist ID. Tracks are appended to the end unless before_track_id is given.
+
+    Args:
+        playlist_id: The TIDAL ID of the playlist (required)
+        track_ids: List of TIDAL track IDs to add, in the desired order (required)
+        skip_duplicates: Skip tracks that are already in the playlist (default: True)
+        before_track_id: Insert the tracks right before this track instead of at the end
+
+    Returns:
+        A dictionary with the tracks added and any that were skipped as duplicates.
+    """
+    if not auth.is_user_authenticated():
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first. Please use tidal_login().",
+        }
+
+    if not playlist_id:
+        return {
+            "status": "error",
+            "message": "A playlist ID is required. Use get_user_playlists() to find playlist IDs.",
+        }
+
+    if not track_ids or not isinstance(track_ids, list):
+        return {"status": "error", "message": "You must provide at least one track ID."}
+
+    try:
+        result = client.add_tracks_to_playlist(
+            playlist_id=playlist_id,
+            track_ids=[str(tid) for tid in track_ids],
+            skip_duplicates=skip_duplicates,
+            before_track_id=before_track_id,
+        )
+        message = f"Added {len(result['added'])} track(s) to the playlist."
+        if result["skipped"]:
+            message += f" Skipped {len(result['skipped'])} already present."
+        return {
+            "status": "success",
+            "message": message,
+            "added": result["added"],
+            "skipped": result["skipped"],
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to add tracks: {str(e)}",
+        }
+
+
+@mcp.tool()
+def remove_tracks_from_playlist(playlist_id: str, track_ids: list) -> dict:
+    """
+    Removes tracks from a TIDAL playlist.
+
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Remove this song from my playlist"
+    - "Take these tracks out of my [playlist name] playlist"
+    - "Delete the duplicates from my playlist"
+
+    Use get_playlist_tracks() first to find the track IDs in the playlist.
+    If a track appears more than once, every occurrence is removed.
+
+    Args:
+        playlist_id: The TIDAL ID of the playlist (required)
+        track_ids: List of TIDAL track IDs to remove (required)
+
+    Returns:
+        A dictionary with how many entries were removed and which track IDs
+        were not found in the playlist.
+    """
+    if not auth.is_user_authenticated():
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first. Please use tidal_login().",
+        }
+
+    if not playlist_id:
+        return {
+            "status": "error",
+            "message": "A playlist ID is required. Use get_user_playlists() to find playlist IDs.",
+        }
+
+    if not track_ids or not isinstance(track_ids, list):
+        return {"status": "error", "message": "You must provide at least one track ID."}
+
+    try:
+        result = client.remove_tracks_from_playlist(
+            playlist_id=playlist_id, track_ids=[str(tid) for tid in track_ids]
+        )
+        message = f"Removed {result['removed']} track(s) from the playlist."
+        if result["not_found"]:
+            message += f" {len(result['not_found'])} track ID(s) were not in the playlist."
+        return {
+            "status": "success",
+            "message": message,
+            "removed": result["removed"],
+            "not_found": result["not_found"],
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to remove tracks: {str(e)}",
+        }
+
+
+@mcp.tool()
+def reorder_playlist_tracks(
+    playlist_id: str, track_ids: list, before_track_id: Optional[str] = None
+) -> dict:
+    """
+    Moves tracks to a new position within a TIDAL playlist.
+
+    USE THIS TOOL WHENEVER A USER ASKS FOR:
+    - "Move this song to the top / end of my playlist"
+    - "Put track X before track Y"
+    - "Reorder my playlist so that ..."
+
+    Use get_playlist_tracks() first to see the current order (each track has a
+    "position"). The given tracks are moved, keeping the order you list them
+    in, to sit right before before_track_id. Leave before_track_id empty to
+    move them to the end of the playlist. To move tracks to the top, pass the
+    current first track as before_track_id.
+
+    Args:
+        playlist_id: The TIDAL ID of the playlist (required)
+        track_ids: TIDAL track IDs to move, in their desired relative order (required)
+        before_track_id: The track the moved tracks should come before; omit to move to the end
+
+    Returns:
+        A dictionary with the moved track IDs and the playlist's new track order.
+    """
+    if not auth.is_user_authenticated():
+        return {
+            "status": "error",
+            "message": "You need to login to TIDAL first. Please use tidal_login().",
+        }
+
+    if not playlist_id:
+        return {
+            "status": "error",
+            "message": "A playlist ID is required. Use get_user_playlists() to find playlist IDs.",
+        }
+
+    if not track_ids or not isinstance(track_ids, list):
+        return {"status": "error", "message": "You must provide at least one track ID to move."}
+
+    try:
+        result = client.move_tracks_in_playlist(
+            playlist_id=playlist_id,
+            track_ids=[str(tid) for tid in track_ids],
+            before_track_id=before_track_id,
+        )
+        return {
+            "status": "success",
+            "message": f"Moved {len(result['moved'])} track(s).",
+            "moved": result["moved"],
+            "order": result["order"],
+        }
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"Failed to reorder tracks: {str(e)}",
         }
 
 

@@ -48,11 +48,11 @@ Claude (MCP client) ──stdio──▶ MCP Server (mcp_server/server.py)
                               (JSON:API format, OAuth2)
 ```
 
-**mcp_server/server.py** — MCPServer (mcp SDK 2.x) server that registers 7 tools and initializes `TidalAuth` + `TidalClient` at module level. Tools call `TidalClient` methods directly.
+**mcp_server/server.py** — MCPServer (mcp SDK 2.x) server that registers 11 tools and initializes `TidalAuth` + `TidalClient` at module level. Tools call `TidalClient` methods directly.
 
 **mcp_server/auth.py** — `TidalAuth` class handling two OAuth2 flows: Client Credentials (for catalog/search, no user login) and Authorization Code PKCE (for user operations like playlists and favorites). Persists tokens to `{tempdir}/tidal-mcp-tokens.json`.
 
-**mcp_server/tidal_client.py** — `TidalClient` class wrapping all TIDAL v2 API calls (search, favorites, playlist CRUD). Handles JSON:API request/response format, pagination, and batch track addition (max 20 per request).
+**mcp_server/tidal_client.py** — `TidalClient` class wrapping all TIDAL v2 API calls (search, favorites, playlist CRUD). Handles JSON:API request/response format, pagination, batching of playlist item add/remove/reorder requests, and retries on HTTP 429 using Retry-After. Remove and reorder operations resolve per-entry item ids (a track can appear more than once in a playlist) from the playlist's items relationship before issuing the request.
 
 **mcp_server/jsonapi.py** — Utilities for parsing JSON:API responses: resolving included sideloads, cursor-based pagination, ISO 8601 duration parsing, and formatting track/playlist data into standardized output dicts.
 
@@ -61,5 +61,6 @@ Claude (MCP client) ──stdio──▶ MCP Server (mcp_server/server.py)
 - Uses the official TIDAL v2 API (`openapi.tidal.com/v2`) with JSON:API format instead of the unofficial `tidalapi` library.
 - Search uses Client Credentials auth (no user login required). All other user operations use PKCE.
 - Tokens are persisted to a temp file so sessions survive MCP server restarts.
-- Playlist track addition is batched in groups of 20 (the API limit).
+- Playlist item add/remove requests are batched in groups of 20 (API limit is 50; reorder limit is 20).
+- Reordering only supports "place before item X"; moving tracks to the end is implemented by moving the *other* trailing entries in front of them.
 - No test suite or CI/CD is currently configured.
