@@ -156,11 +156,15 @@ class TidalClient:
         """
         limit = max(1, min(25, limit))
 
+        # The search text is passed as filter[query]; the response is a single
+        # searchResults resource whose "tracks" relationship lists track ids,
+        # with full track/artist/album objects sideloaded in "included".
         response = requests.get(
-            f"{BASE_URL}/searchResults/{requests.utils.quote(query, safe='')}/relationships/topHits",
+            f"{BASE_URL}/searchResults",
             params={
+                "filter[query]": query,
                 "countryCode": self.country_code,
-                "include": "topHits",
+                "include": "tracks,tracks.artists,tracks.albums",
             },
             headers=self._catalog_headers(),
         )
@@ -171,10 +175,16 @@ class TidalClient:
             )
 
         resp_json = response.json()
-        # topHits returns mixed types (tracks, artists, albums) — keep only tracks
-        resp_json["data"] = [
-            d for d in resp_json.get("data", []) if d.get("type") == "tracks"
-        ]
+        results = resp_json.get("data", [])
+        if not results:
+            return []
+
+        # Promote the track resource identifiers to the top-level "data" so
+        # parse_collection_response can resolve them from "included".
+        track_refs = (
+            results[0].get("relationships", {}).get("tracks", {}).get("data", [])
+        )
+        resp_json["data"] = [d for d in track_refs if d.get("type") == "tracks"]
         tracks, _ = parse_collection_response(resp_json, resource_type="tracks")
         return tracks[:limit]
 
