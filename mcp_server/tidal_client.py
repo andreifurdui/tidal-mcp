@@ -203,25 +203,40 @@ class TidalClient:
             RuntimeError: If not authenticated or request fails.
         """
         limit = max(1, min(50, limit))
-        user_id = self.get_user_id()
+        all_tracks: list[dict] = []
+        cursor = None
 
-        response = requests.get(
-            f"{BASE_URL}/userCollections/{user_id}/relationships/tracks",
-            params={
+        # Favorites live under the userCollectionTracks resource; "me" is the
+        # API's alias for the authenticated user. Pages are a fixed size
+        # (page[limit] is ignored), so follow the cursor until we have enough.
+        while len(all_tracks) < limit:
+            params = {
                 "countryCode": self.country_code,
-                "include": "tracks",
-                "page[limit]": limit,
-            },
-            headers=self._user_headers(),
-        )
+                "include": "items.artists,items.albums",
+            }
+            if cursor:
+                params["page[cursor]"] = cursor
 
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"Failed to get favorites: {response.status_code} {response.text}"
+            response = requests.get(
+                f"{BASE_URL}/userCollectionTracks/me/relationships/items",
+                params=params,
+                headers=self._user_headers(),
             )
 
-        tracks, _ = parse_collection_response(response.json(), resource_type="tracks")
-        return tracks
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"Failed to get favorites: {response.status_code} {response.text}"
+                )
+
+            resp_json = response.json()
+            tracks, _ = parse_collection_response(resp_json, resource_type="tracks")
+            all_tracks.extend(tracks)
+
+            cursor = get_next_cursor(resp_json)
+            if not cursor or not tracks:
+                break
+
+        return all_tracks[:limit]
 
     # ── Playlists ────────────────────────────────────────────────────
 
@@ -354,11 +369,11 @@ class TidalClient:
         cursor = None
 
         while len(all_tracks) < limit:
-            page_limit = min(50, limit - len(all_tracks))
+            # Nested includes bring artist/album names along; page[limit]
+            # is ignored by the API, so pages come back at a fixed size.
             params = {
                 "countryCode": self.country_code,
-                "include": "items",
-                "page[limit]": page_limit,
+                "include": "items.artists,items.albums",
             }
             if cursor:
                 params["page[cursor]"] = cursor
