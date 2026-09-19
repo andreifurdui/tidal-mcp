@@ -48,7 +48,7 @@ Claude (MCP client) ──stdio──▶ MCP Server (mcp_server/server.py)
                               (JSON:API format, OAuth2)
 ```
 
-**mcp_server/server.py** — FastMCP server that registers 7 tools and initializes `TidalAuth` + `TidalClient` at module level. Tools call `TidalClient` methods directly.
+**mcp_server/server.py** — MCPServer (mcp SDK 2.x) server that registers 7 tools and initializes `TidalAuth` + `TidalClient` at module level. Tools call `TidalClient` methods directly.
 
 **mcp_server/auth.py** — `TidalAuth` class handling two OAuth2 flows: Client Credentials (for catalog/search, no user login) and Authorization Code PKCE (for user operations like playlists and favorites). Persists tokens to `{tempdir}/tidal-mcp-tokens.json`.
 

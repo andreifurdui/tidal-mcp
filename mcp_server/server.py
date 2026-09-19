@@ -1,5 +1,5 @@
 import os
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 from typing import Optional, List
 
 from auth import TidalAuth
@@ -20,7 +20,7 @@ if not CLIENT_ID or not CLIENT_SECRET:
 
 # ── Initialize ───────────────────────────────────────────────────────
 
-mcp = FastMCP("TIDAL MCP")
+mcp = MCPServer("TIDAL MCP", version="0.1.0")
 
 auth = TidalAuth(
     client_id=CLIENT_ID,
